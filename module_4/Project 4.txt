@@ -1,0 +1,57 @@
+with 
+flight as (SELECT   fl.flight_id,
+                    fl.flight_no,
+                    fl.scheduled_departure,
+                    fl.actual_departure,
+                    fl.departure_airport,
+                    fl.scheduled_arrival,
+                    fl.actual_arrival,
+                    fl.arrival_airport,
+                    fl.actual_arrival - fl.actual_departure flighttime,
+                    fl.aircraft_code,
+                    fl.status,
+                    tf.fare_conditions,
+                    bp.seat_no,
+                    bp.ticket_no
+from dst_project.flights fl
+    left join dst_project.ticket_flights tf on tf.flight_id = fl.flight_id
+    left join dst_project.boarding_passes bp on tf.flight_id = bp.flight_id and tf.ticket_no = bp.ticket_no
+where fl.departure_airport = 'AAQ'
+  AND (date_trunc('month', fl.scheduled_departure) in ('2017-01-01','2017-02-01', '2017-12-01'))
+  AND fl.status not in ('Cancelled')),
+  
+flightamount as (select  tf.flight_id,
+                    sum(tf.amount) flightamount
+from dst_project.bookings bk
+    join dst_project.tickets tk on bk.book_ref = tk.book_ref
+    join dst_project.ticket_flights tf on tk.ticket_no = tf.ticket_no 
+group by tf.flight_id),
+
+
+
+aircraft as (select ar.aircraft_code,
+                    ar.model,
+                    count(st.seat_no) countseats
+from dst_project.aircrafts ar
+    join dst_project.seats st on st.aircraft_code = ar.aircraft_code
+group by 1)
+
+select  flight.flight_id,
+        flight.seat_no,
+        flight.ticket_no,
+        flight.fare_conditions,
+        flightamount.flightamount,
+        aircraft.countseats,
+        flight.scheduled_departure,
+        flight.actual_departure,
+        flight.departure_airport,
+        flight.scheduled_arrival,
+        flight.actual_arrival,
+        flight.arrival_airport,
+        flight.flighttime,
+        flight.status,
+        aircraft.aircraft_code,
+        aircraft.model
+from flightamount
+    full outer join flight on flightamount.flight_id = flight.flight_id
+    join aircraft on aircraft.aircraft_code = flight.aircraft_code
